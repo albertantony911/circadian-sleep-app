@@ -62,7 +62,6 @@
         android:src="@android:drawable/ic_popup_sync"
         app:backgroundTint="#18181B"
         app:tint="#A78BFA"
-        app:borderWidth="1dp"
-        app:borderColor="#27272A" />
+        app:elevation="6dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
