@@ -21,7 +21,13 @@ class HealthConnectSyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     private val prefs = appContext.getSharedPreferences("nadir_sync_prefs", Context.MODE_PRIVATE)
-    private val client = HealthConnectClient.getOrCreate(appContext)
+    private val client by lazy {
+        try {
+            HealthConnectClient.getOrCreate(appContext, "com.google.android.apps.healthdata")
+        } catch (e: Exception) {
+            HealthConnectClient.getOrCreate(appContext)
+        }
+    }
 
     companion object {
         const val ENDPOINT_URL = "https://circadian-sleep-app.vercel.app/api/ingest/health-connect"

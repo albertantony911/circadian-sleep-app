@@ -33,7 +33,23 @@ class MainActivity : ComponentActivity() {
         val btnGrant = findViewById<Button>(R.id.btnGrant)
         val btnSync = findViewById<Button>(R.id.btnSync)
 
-        val healthConnectClient = HealthConnectClient.getOrCreate(this)
+        val providerPackageName = "com.google.android.apps.healthdata"
+        val availabilityStatus = HealthConnectClient.getSdkStatus(this, providerPackageName)
+
+        if (availabilityStatus != HealthConnectClient.SDK_AVAILABLE) {
+            txtStatus.text = "Health Connect requires setup:\nStatus code: $availabilityStatus\nPlease open Health Connect from Settings."
+        }
+
+        val healthConnectClient = try {
+            HealthConnectClient.getOrCreate(this, providerPackageName)
+        } catch (e: Exception) {
+            try {
+                HealthConnectClient.getOrCreate(this)
+            } catch (ex: Exception) {
+                txtStatus.text = "Error connecting to Health Connect:\n${ex.message}"
+                null
+            }
+        }
 
         requestPermissionLauncher = registerForActivityResult(
             PermissionController.createRequestPermissionResultContract()
@@ -47,13 +63,21 @@ class MainActivity : ComponentActivity() {
         }
 
         btnGrant.setOnClickListener {
+            if (healthConnectClient == null) {
+                Toast.makeText(this, "Health Connect service not available", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             lifecycleScope.launch {
-                val granted = healthConnectClient.permissionController.getGrantedPermissions()
-                if (granted.containsAll(PERMISSIONS)) {
-                    txtStatus.text = "✓ Already granted! Daily delta sync active."
-                    scheduleDailySync()
-                } else {
-                    requestPermissionLauncher.launch(PERMISSIONS)
+                try {
+                    val granted = healthConnectClient.permissionController.getGrantedPermissions()
+                    if (granted.containsAll(PERMISSIONS)) {
+                        txtStatus.text = "✓ Already granted! Daily delta sync active."
+                        scheduleDailySync()
+                    } else {
+                        requestPermissionLauncher.launch(PERMISSIONS)
+                    }
+                } catch (e: Exception) {
+                    txtStatus.text = "Permission error: ${e.message}"
                 }
             }
         }
