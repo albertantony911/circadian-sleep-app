@@ -1,0 +1,18 @@
+{
+  "name": "Nadir Circadian & Sleep Engine",
+  "short_name": "Nadir Sleep",
+  "description": "Rate-limit proof circadian rhythm tracking, sleep debt modeling, and hypnogram analytics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090B",
+  "theme_color": "#09090B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
