@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#09090B">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Nadir Health Connect"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rate-limit proof Android background delta sync"
+        android:textSize="12sp"
+        android:textColor="#A1A1AA"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="32dp" />
+
+    <TextView
+        android:id="@+id/txtStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: Waiting for permission..."
+        android:textSize="13sp"
+        android:textColor="#E4E4E7"
+        android:background="#18181B"
+        android:padding="16dp"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnGrant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Grant Health Connect Permission"
+        android:backgroundTint="#8B5CF6"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnSync"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sync Delta Now"
+        android:backgroundTint="#27272A"
+        android:textColor="#FAFAFA" />
+
+</LinearLayout>
