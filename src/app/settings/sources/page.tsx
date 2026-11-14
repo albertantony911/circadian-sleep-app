@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   Radio,
   Key,
@@ -23,7 +23,7 @@ import { parseSleepAsAndroidCSV, parseHealthConnectJSON } from "@/lib/importers/
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 
-export default function SourcesHealthPage() {
+function SourcesHealthContent() {
   const searchParams = useSearchParams();
   const connectedParam = searchParams.get("connected");
   const errorParam = searchParams.get("error");
@@ -739,5 +739,19 @@ GOOGLE_CLIENT_SECRET=your-client-secret
         </div>
       )}
     </div>
+  );
+}
+
+export default function SourcesHealthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-zinc-500 animate-pulse font-mono text-xs">
+          Loading Sources & Sync Health Manager...
+        </div>
+      }
+    >
+      <SourcesHealthContent />
+    </Suspense>
   );
 }
