@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 interface AppShellProps {
@@ -26,6 +27,8 @@ export function AppShell({ children }: AppShellProps) {
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/tools/nap-simulator", label: "Nap & NSDR Simulator", icon: Zap },
+    { href: "/insights", label: "Causal Intelligence", icon: Sparkles },
     { href: "/settings/sources", label: "Sources & Sync", icon: Radio },
     { href: "/settings/schedule", label: "Schedule & Rhythm", icon: SlidersHorizontal },
   ];

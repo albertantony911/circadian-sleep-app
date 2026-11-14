@@ -37,7 +37,6 @@ export async function getDb() {
 
   // Local embedded fallback using PGlite
   if (!global.__pglite_instance) {
-    // Store in project's local .pglite directory, /tmp on Vercel serverless, or memory in tests
     const pgliteDataDir =
       process.env.NODE_ENV === "test"
         ? undefined
@@ -99,6 +98,14 @@ async function initSchema(client: PGlite) {
       awake_minutes INTEGER NOT NULL DEFAULT 0,
       sleep_score INTEGER,
       is_main_sleep BOOLEAN NOT NULL DEFAULT TRUE,
+      rhr_nadir_bpm INTEGER,
+      rhr_nadir_timestamp TIMESTAMPTZ,
+      time_to_nadir_minutes INTEGER,
+      rhr_stabilization_pct REAL,
+      overnight_hrv_ms REAL,
+      hammock_curve_type TEXT,
+      sleep_regularity_index REAL,
+      auto_tags JSONB,
       raw_payload JSONB,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -110,6 +117,69 @@ async function initSchema(client: PGlite) {
       start_time TIMESTAMPTZ NOT NULL,
       end_time TIMESTAMPTZ NOT NULL,
       duration_seconds INTEGER NOT NULL
+    );
+
+    -- Ensure extended columns exist on sleep_sessions
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS rhr_nadir_bpm INTEGER;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS rhr_nadir_timestamp TIMESTAMPTZ;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS time_to_nadir_minutes INTEGER;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS rhr_stabilization_pct REAL;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS overnight_hrv_ms REAL;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS hammock_curve_type TEXT;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS sleep_regularity_index REAL;
+    ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS auto_tags JSONB;
+
+    CREATE TABLE IF NOT EXISTS sleep_heart_rate_series (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sleep_sessions(id) ON DELETE CASCADE,
+      recorded_at TIMESTAMPTZ NOT NULL,
+      bpm INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_biometrics (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      steps_count INTEGER NOT NULL DEFAULT 0,
+      active_minutes INTEGER NOT NULL DEFAULT 0,
+      resting_hr INTEGER,
+      overnight_hrv_rmssd REAL,
+      hrv_ewma_30d REAL,
+      hrv_z_score REAL,
+      hrv_cv_7d REAL,
+      strain_score REAL NOT NULL DEFAULT 0,
+      dynamic_sleep_target_minutes INTEGER NOT NULL DEFAULT 480,
+      biological_state TEXT NOT NULL DEFAULT 'aligned_baseline',
+      subjective_morning_score INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS workout_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      external_id TEXT UNIQUE,
+      source_app TEXT NOT NULL,
+      activity_type TEXT NOT NULL,
+      start_time TIMESTAMPTZ NOT NULL,
+      end_time TIMESTAMPTZ NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      avg_hr INTEGER,
+      max_hr INTEGER,
+      hr_zone_minutes JSONB,
+      session_strain_score REAL NOT NULL DEFAULT 0,
+      is_morning_outdoor BOOLEAN NOT NULL DEFAULT FALSE,
+      is_late_evening BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS night_embeddings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id TEXT NOT NULL REFERENCES sleep_sessions(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      summary_text TEXT NOT NULL,
+      embedding JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS sync_logs (
