@@ -38,6 +38,26 @@ function SourcesHealthContent() {
   const [simulating, setSimulating] = useState(false);
   const [rateLimitTimer, setRateLimitTimer] = useState<number | null>(null);
 
+  // Clear simulated data state
+  const [clearing, setClearing] = useState(false);
+  const [clearMsg, setClearMsg] = useState<string | null>(null);
+
+  const handleClearMockData = async () => {
+    if (!confirm("This will remove simulated baseline sessions so only your real Health Connect records appear on the dashboard. Proceed?")) return;
+    try {
+      setClearing(true);
+      const res = await fetch("/api/sync/reset-data", { method: "POST" });
+      const json = await res.json();
+      setClearMsg(json.message || "Simulated data cleared!");
+      fetchHealthData();
+    } catch (err: any) {
+      setClearMsg(`Error: ${err.message}`);
+    } finally {
+      setClearing(false);
+      setTimeout(() => setClearMsg(null), 6000);
+    }
+  };
+
   // Google Health Sync state
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleSyncMsg, setGoogleSyncMsg] = useState<string | null>(null);
@@ -263,13 +283,31 @@ storeNextChangesToken(response.nextChangesToken)`;
 
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">Sources & Sync Health</h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Two-tier ingestion engine: Direct Cloud OAuth syncing + Thin Android Health Connect Delta Bridge.
-        </p>
+      {/* Title & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Sources & Sync Health</h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Primary: On-device Android Health Connect (Zero Rate Limits). Secondary: Cloud connectors.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearMockData}
+            disabled={clearing}
+            className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-400/90 hover:text-amber-300 border border-amber-900/40 text-xs font-medium transition-colors flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3 h-3 ${clearing ? "animate-spin" : ""}`} />
+            {clearing ? "Clearing..." : "Purge Stale Baseline Data"}
+          </button>
+        </div>
       </div>
+
+      {clearMsg && (
+        <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/40 text-xs text-amber-300 font-mono">
+          ✓ {clearMsg}
+        </div>
+      )}
 
       {/* Grid: Cloud Providers & Health Connect Card */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

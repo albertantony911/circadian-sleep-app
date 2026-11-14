@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { users, sleepSessions, sleepStages, syncLogs } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { deduplicateSleepRecords } from "@/lib/analytics/deduplication";
+import { deduplicateSleepRecords, doIntervalsOverlap, getSourcePriority } from "@/lib/analytics/deduplication";
 
 // Zod schema for Health Connect delta changes payload
 const stageSchema = z.object({
@@ -107,6 +107,16 @@ export async function POST(req: NextRequest) {
       const start = new Date(record.startTime);
       const end = new Date(record.endTime);
       const timeInBed = record.timeInBedMinutes || record.durationMinutes;
+
+      // Delete any existing overlapping session that has lower priority (e.g. simulated/mock data)
+      for (const ex of existingSessions) {
+        if (doIntervalsOverlap(start, end, new Date(ex.startTime), new Date(ex.endTime))) {
+          if (getSourcePriority(record.sourceApp) > getSourcePriority(ex.sourceApp)) {
+            await db.delete(sleepStages).where(eq(sleepStages.sessionId, ex.id));
+            await db.delete(sleepSessions).where(eq(sleepSessions.id, ex.id));
+          }
+        }
+      }
 
       // Upsert parent session
       await db

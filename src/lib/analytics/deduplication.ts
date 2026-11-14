@@ -21,18 +21,21 @@ export interface RawSleepRecord {
 
 // Higher rank means higher precedence
 const SOURCE_PRIORITY_MAP: Record<string, number> = {
-  fitbit_cloud: 100,
-  "com.fitbit.FitbitMobile": 100,
-  fitbit: 100,
+  health_connect_bridge: 100,
+  "com.google.android.apps.healthdata": 100,
+  "com.google.android.apps.fitness": 95,
+  "com.fitbit.FitbitMobile": 95,
+  "com.samsung.android.shealth": 95,
+  "com.guavahealth.app": 95,
   garmin: 90,
   whoop: 90,
-  health_connect_wearable: 80,
-  health_connect_bridge: 70,
-  "com.google.android.apps.healthdata": 70,
+  health_connect_wearable: 90,
+  fitbit_cloud: 75,
   sleep_as_android_csv: 60,
   "com.urbandroid.sleep": 60,
   phone_sensor: 30,
   manual_import: 20,
+  simulated_seed: 5,
 };
 
 export function getSourcePriority(source: string): number {

@@ -52,4 +52,13 @@
         android:backgroundTint="#27272A"
         android:textColor="#FAFAFA" />
 
+    <Button
+        android:id="@+id/btnBackfill"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Backfill Past 30 Days"
+        android:backgroundTint="#3B82F6"
+        android:textColor="#FAFAFA"
+        android:layout_marginTop="12dp" />
+
 </LinearLayout>

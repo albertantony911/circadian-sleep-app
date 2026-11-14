@@ -88,6 +88,16 @@ class MainActivity : ComponentActivity() {
             WorkManager.getInstance(this).enqueue(workRequest)
             Toast.makeText(this, "Sync triggered in background", Toast.LENGTH_SHORT).show()
         }
+
+        val btnBackfill = findViewById<Button>(R.id.btnBackfill)
+        btnBackfill.setOnClickListener {
+            txtStatus.text = "Backfilling past 30 days from Health Connect..."
+            val workRequest = OneTimeWorkRequestBuilder<HealthConnectSyncWorker>()
+                .setInputData(androidx.work.workDataOf(HealthConnectSyncWorker.KEY_FORCE_BACKFILL to true))
+                .build()
+            WorkManager.getInstance(this).enqueue(workRequest)
+            Toast.makeText(this, "30-day backfill started...", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun scheduleDailySync() {
