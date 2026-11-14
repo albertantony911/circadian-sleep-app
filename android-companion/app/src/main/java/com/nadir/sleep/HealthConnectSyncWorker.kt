@@ -67,6 +67,8 @@ class HealthConnectSyncWorker(
                         val durationMinutes = ChronoUnit.MINUTES.between(record.startTime, record.endTime).toInt()
                         if (durationMinutes <= 0) continue
 
+                        Log.d(TAG, "Read record ${record.metadata.id} from ${record.metadata.dataOrigin.packageName}: ${record.startTime} -> ${record.endTime} ($durationMinutes min)")
+
                         val sessionObj = JSONObject().apply {
                             put("externalId", record.metadata.id)
                             put("sourceApp", record.metadata.dataOrigin.packageName)

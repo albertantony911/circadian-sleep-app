@@ -193,7 +193,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Purge any simulated seed sessions when real records arrive so they don't pollute or suppress real data
+    // 5. Fetch existing sessions
+    const existingSessions = await db
+      .select()
+      .from(sleepSessions)
+      .where(eq(sleepSessions.userId, user.id));
+
+    // Purge any simulated seed sessions when real records arrive so they don't pollute or suppress real data
     if (upsertedRecords.length > 0) {
       const mockSessions = existingSessions.filter(
         (s: any) => s.id.startsWith("sess_") || s.externalId?.startsWith("ext_sess_") || s.sourceApp === "simulated_seed"
@@ -301,12 +307,6 @@ export async function POST(req: NextRequest) {
             timeInBedMinutes: timeInBed,
             deepMinutes: record.deepMinutes || 0,
             lightMinutes: record.lightMinutes || 0,
-            remMinutes: record.remMinutes || 0,
-            awakeMinutes: record.awakeMinutes || 0,
-            rhrNadirBpm: autonomicData.rhrNadirBpm,
-            hammockCurveType: autonomicData.hammockCurveType,
-          },
-        });
             remMinutes: record.remMinutes || 0,
             awakeMinutes: record.awakeMinutes || 0,
             rhrNadirBpm: autonomicData.rhrNadirBpm,

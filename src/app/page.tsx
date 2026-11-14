@@ -61,7 +61,7 @@ export default function DashboardPage() {
         <Moon className="w-10 h-10 text-violet-400 mx-auto" />
         <h2 className="text-lg font-semibold text-white">Database Initializing</h2>
         <p className="text-xs text-zinc-400 max-w-md mx-auto">
-          No sleep data detected yet. Run the database seed to explore multi-stage analytics.
+          No sleep data detected yet. Pull down or tap Sync above to load Health Connect records.
         </p>
         <button
           onClick={fetchDashboardData}
@@ -69,6 +69,35 @@ export default function DashboardPage() {
         >
           <RefreshCw className="w-3.5 h-3.5" /> Retry Loading
         </button>
+      </div>
+    );
+  }
+
+  if (!data.latestSession) {
+    return (
+      <div className="space-y-6">
+        <div className="p-8 rounded-2xl border border-zinc-800/80 bg-[#0C0C0E] text-center space-y-4 shadow-2xl">
+          <Moon className="w-12 h-12 text-violet-400 mx-auto animate-pulse" />
+          <h2 className="text-xl font-bold text-white tracking-tight">Ready for Health Connect Sync</h2>
+          <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+            All mock and simulated records have been cleared. Tap <strong>Sync</strong> above to ingest your real sleep sessions from Health Connect.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined" && (window as any).NadirNative) {
+                  (window as any).NadirNative.triggerBackfill();
+                } else {
+                  fetchDashboardData();
+                }
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg shadow-violet-900/30 transition-all active:scale-95"
+            >
+              <RefreshCw className="w-4 h-4" /> Sync Real Records from Health Connect
+            </button>
+          </div>
+        </div>
+        {data.circadianTimeline && <CircadianTimelineBar milestones={data.circadianTimeline} />}
       </div>
     );
   }

@@ -49,16 +49,29 @@ export async function GET() {
     .orderBy(desc(sleepSessions.startTime))
     .limit(45);
 
-  // Auto-seed if empty
+  // If no real sessions exist yet, return clean empty state without auto-generating dummy data
   if (sessions.length === 0) {
-    const { seedDatabase } = await import("@/lib/db/seed");
-    await seedDatabase();
-    sessions = await db
-      .select()
-      .from(sleepSessions)
-      .where(eq(sleepSessions.userId, userId))
-      .orderBy(desc(sleepSessions.startTime))
-      .limit(45);
+    return NextResponse.json({
+      user,
+      biologicalState: null,
+      circadianTimeline: generateCircadianTimeline(
+        new Date(),
+        user.preferredBedTime || "22:30",
+        0
+      ),
+      dynamicSleepTarget: null,
+      recoveryPlan: null,
+      autonomicAnalysis: null,
+      signalNormalization: null,
+      latestSession: null,
+      latestStages: [],
+      latestHrSeries: [],
+      recentWorkouts: [],
+      todayBiometrics: null,
+      causalInsights: [],
+      consistencyData: [],
+      recentSessions: [],
+    });
   }
 
   // 3. Fetch latest session stages & 1-minute HR series
