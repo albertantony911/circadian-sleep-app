@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
-import androidx.health.connect.client.request.GetChangesRequest
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +40,7 @@ class HealthConnectSyncWorker(
             }
 
             // Pull incremental changes delta only (bypassing rate limits)
-            val changesResponse = client.getChanges(GetChangesRequest(changesToken))
+            val changesResponse = client.getChanges(changesToken)
 
             val upsertedArray = JSONArray()
             val deletedArray = JSONArray()
