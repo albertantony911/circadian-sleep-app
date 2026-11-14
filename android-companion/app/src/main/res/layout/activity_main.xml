@@ -1,64 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center"
+    android:fitsSystemWindows="true"
     android:background="#09090B">
 
-    <TextView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#09090B" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- Top Permission Banner (appears only if Health Connect permission needed) -->
+    <LinearLayout
+        android:id="@+id/bannerPermission"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#7C3AED"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/txtBannerText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Health Connect permission required for background sleep sync"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnGrantBanner"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Grant"
+            android:textSize="11sp"
+            android:backgroundTint="#09090B"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Floating Action Button: Quick Sync Health Connect -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabSync"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Nadir Health Connect"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF" />
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:contentDescription="Sync Health Connect"
+        android:src="@android:drawable/ic_popup_sync"
+        app:backgroundTint="#18181B"
+        app:tint="#A78BFA"
+        app:borderWidth="1dp"
+        app:borderColor="#27272A" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Rate-limit proof Android background delta sync"
-        android:textSize="12sp"
-        android:textColor="#A1A1AA"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="32dp" />
-
-    <TextView
-        android:id="@+id/txtStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Status: Waiting for permission..."
-        android:textSize="13sp"
-        android:textColor="#E4E4E7"
-        android:background="#18181B"
-        android:padding="16dp"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/btnGrant"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Grant Health Connect Permission"
-        android:backgroundTint="#8B5CF6"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="12dp" />
-
-    <Button
-        android:id="@+id/btnSync"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Sync Delta Now"
-        android:backgroundTint="#27272A"
-        android:textColor="#FAFAFA" />
-
-    <Button
-        android:id="@+id/btnBackfill"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Backfill Past 30 Days"
-        android:backgroundTint="#3B82F6"
-        android:textColor="#FAFAFA"
-        android:layout_marginTop="12dp" />
-
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

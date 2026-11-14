@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.Nadir" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#09090B</item>
+        <item name="android:navigationBarColor">#09090B</item>
+        <item name="android:windowBackground">#09090B</item>
+        <item name="colorPrimary">#8B5CF6</item>
+        <item name="colorPrimaryVariant">#7C3AED</item>
+        <item name="colorSecondary">#A78BFA</item>
+    </style>
+</resources>
