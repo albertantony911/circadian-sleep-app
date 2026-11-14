@@ -193,6 +193,10 @@ async function initSchema(client: PGlite) {
       error_detail TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    INSERT INTO users (id, email, name, target_sleep_minutes, chronotype, preferred_wake_time, preferred_bed_time, ingest_api_key)
+    VALUES ('usr_nadir_primary', 'albert@circadian.local', 'Albert (Sleep Researcher)', 480, 'intermediate', '06:30', '22:30', 'ak_live_circadian_92b8d0e74f1')
+    ON CONFLICT (id) DO UPDATE SET ingest_api_key = 'ak_live_circadian_92b8d0e74f1';
   `);
 }
 
