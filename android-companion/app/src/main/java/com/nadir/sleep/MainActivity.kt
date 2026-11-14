@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.webkit.JavascriptInterface
@@ -32,7 +31,6 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -42,7 +40,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var bannerPermission: LinearLayout
     private lateinit var btnGrantBanner: Button
-    private lateinit var fabSync: FloatingActionButton
 
     private var healthConnectClient: HealthConnectClient? = null
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Set<String>>
@@ -68,12 +65,10 @@ class MainActivity : AppCompatActivity() {
         swipeRefresh = findViewById(R.id.swipeRefresh)
         bannerPermission = findViewById(R.id.bannerPermission)
         btnGrantBanner = findViewById(R.id.btnGrantBanner)
-        fabSync = findViewById(R.id.fabSync)
 
         setupHealthConnect()
         setupWebView()
         setupSwipeRefresh()
-        setupFab()
         setupBackNavigation()
 
         checkPermissionsAndSchedule()
@@ -193,20 +188,7 @@ class MainActivity : AppCompatActivity() {
         )
         swipeRefresh.setProgressBackgroundColorSchemeColor(Color.parseColor("#18181B"))
         swipeRefresh.setOnRefreshListener {
-            webView.reload()
-        }
-    }
-
-    private fun setupFab() {
-        fabSync.setOnClickListener {
-            Toast.makeText(this, "Syncing Health Connect delta...", Toast.LENGTH_SHORT).show()
             triggerDeltaSync()
-        }
-
-        fabSync.setOnLongClickListener {
-            Toast.makeText(this, "Backfilling 30 days from Health Connect...", Toast.LENGTH_LONG).show()
-            triggerBackfill()
-            true
         }
     }
 
@@ -223,19 +205,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun triggerDeltaSync() {
+        swipeRefresh.isRefreshing = true
         val workRequest = OneTimeWorkRequestBuilder<HealthConnectSyncWorker>().build()
         val workManager = WorkManager.getInstance(this)
         workManager.enqueue(workRequest)
 
         workManager.getWorkInfoByIdLiveData(workRequest.id).observe(this) { info ->
-            if (info != null && info.state == WorkInfo.State.SUCCEEDED) {
-                Toast.makeText(this, "✓ Sync complete! Updating dashboard...", Toast.LENGTH_SHORT).show()
-                webView.reload()
+            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED)) {
+                swipeRefresh.isRefreshing = false
+                if (info.state == WorkInfo.State.SUCCEEDED) {
+                    Toast.makeText(this, "✓ Health Connect synced!", Toast.LENGTH_SHORT).show()
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('nadir:synced', { detail: { success: true } }));",
+                        null
+                    )
+                }
             }
         }
     }
 
     fun triggerBackfill() {
+        swipeRefresh.isRefreshing = true
         val workRequest = OneTimeWorkRequestBuilder<HealthConnectSyncWorker>()
             .setInputData(workDataOf(HealthConnectSyncWorker.KEY_FORCE_BACKFILL to true))
             .build()
@@ -243,9 +233,15 @@ class MainActivity : AppCompatActivity() {
         workManager.enqueue(workRequest)
 
         workManager.getWorkInfoByIdLiveData(workRequest.id).observe(this) { info ->
-            if (info != null && info.state == WorkInfo.State.SUCCEEDED) {
-                Toast.makeText(this, "✓ 30-day backfill complete!", Toast.LENGTH_SHORT).show()
-                webView.reload()
+            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED)) {
+                swipeRefresh.isRefreshing = false
+                if (info.state == WorkInfo.State.SUCCEEDED) {
+                    Toast.makeText(this, "✓ 30-day backfill complete!", Toast.LENGTH_SHORT).show()
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('nadir:synced', { detail: { success: true } }));",
+                        null
+                    )
+                }
             }
         }
     }
@@ -266,6 +262,13 @@ class MainActivity : AppCompatActivity() {
         fun triggerSync() {
             activity.runOnUiThread {
                 activity.triggerDeltaSync()
+            }
+        }
+
+        @JavascriptInterface
+        fun triggerBackfill() {
+            activity.runOnUiThread {
+                activity.triggerBackfill()
             }
         }
 

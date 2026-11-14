@@ -34,6 +34,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+
+    const handleRefresh = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener("nadir:refresh_data", handleRefresh);
+    return () => window.removeEventListener("nadir:refresh_data", handleRefresh);
   }, []);
 
   if (loading) {
@@ -106,7 +112,11 @@ export default function DashboardPage() {
           cumulativeDebtHours={Number(((recoveryPlan?.cumulativeDebtMinutes || 0) / 60).toFixed(1))}
           statusLabel={recoveryPlan?.decayedDebtMinutes > 60 ? "Elevated Sleep Debt" : "Optimal Rest"}
           status={recoveryPlan?.decayedDebtMinutes > 60 ? "moderate" : "optimal"}
-          advice={recoveryPlan?.actionAdvice || "Maintain steady schedule."}
+          advice={
+            recoveryPlan?.decayedDebtMinutes > 60
+              ? "Autonomic reserves are drawn down. Prioritize restorative non-sleep deep rest (NSDR) or an earlier bedtime to restore energy capacity."
+              : "Autonomic reserves fully restored. Your body is primed for regular or high physical output."
+          }
         />
       </div>
 

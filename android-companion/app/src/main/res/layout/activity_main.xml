@@ -51,17 +51,4 @@
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Floating Action Button: Quick Sync Health Connect -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabSync"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:contentDescription="Sync Health Connect"
-        android:src="@android:drawable/ic_popup_sync"
-        app:backgroundTint="#18181B"
-        app:tint="#A78BFA"
-        app:elevation="6dp" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
