@@ -100,7 +100,22 @@ export async function POST(req: NextRequest) {
       .set({ syncStatus: "syncing" })
       .where(eq(oauthConnections.id, conn.id));
 
-    // Simulate upstream delta sync latency
+    // Execute provider-specific sync
+    if (provider === "google_health") {
+      const { syncGoogleHealthSessions } = await import("@/lib/sync/google-health");
+      const result = await syncGoogleHealthSessions(userId);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 500 });
+      }
+      return NextResponse.json({
+        success: true,
+        lastSyncAt: new Date(),
+        recordsUpserted: result.recordsUpserted ?? 1,
+        durationMs: Date.now() - startTime,
+      });
+    }
+
+    // Simulate upstream delta sync latency for Fitbit
     await new Promise((res) => setTimeout(res, 400));
 
     // Complete sync successfully

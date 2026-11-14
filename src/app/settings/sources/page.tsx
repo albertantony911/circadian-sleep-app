@@ -16,19 +16,32 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import { parseSleepAsAndroidCSV, parseHealthConnectJSON } from "@/lib/importers/file-importers";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 
 export default function SourcesHealthPage() {
+  const searchParams = useSearchParams();
+  const connectedParam = searchParams.get("connected");
+  const errorParam = searchParams.get("error");
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
   const [copiedKotlin, setCopiedKotlin] = useState(false);
+  const [copiedRedirectUri, setCopiedRedirectUri] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [rateLimitTimer, setRateLimitTimer] = useState<number | null>(null);
+
+  // Google Health Sync state
+  const [syncingGoogle, setSyncingGoogle] = useState(false);
+  const [googleSyncMsg, setGoogleSyncMsg] = useState<string | null>(null);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
   // File import state
   const [importing, setImporting] = useState(false);
@@ -116,6 +129,34 @@ export default function SourcesHealthPage() {
     } finally {
       setSimulating(false);
     }
+  };
+
+  const handleSyncGoogle = async () => {
+    try {
+      setSyncingGoogle(true);
+      setGoogleSyncMsg(null);
+      const res = await fetch("/api/sync/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "google_health" }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setGoogleSyncMsg("Google Health synced successfully!");
+        fetchHealthData();
+      } else {
+        setGoogleSyncMsg(`Sync failed: ${json.error || "Unknown error"}`);
+      }
+    } catch (err: any) {
+      setGoogleSyncMsg(`Sync error: ${err.message}`);
+    } finally {
+      setSyncingGoogle(false);
+      setTimeout(() => setGoogleSyncMsg(null), 4000);
+    }
+  };
+
+  const handleConnectGoogle = () => {
+    window.location.href = "/api/auth/google";
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,7 +331,7 @@ storeNextChangesToken(response.nextChangesToken)`;
             </div>
           </div>
 
-          {/* Google Health Provider */}
+          {/* Google Health Provider (Method 2) */}
           <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -299,19 +340,61 @@ storeNextChangesToken(response.nextChangesToken)`;
                 </div>
                 <div>
                   <span className="text-sm font-medium text-white block">Google Health Connect REST</span>
-                  <span className="text-[11px] text-zinc-500 font-mono">OAuth 2.0 Cloud Mirror</span>
+                  <span className="text-[11px] text-zinc-500 font-mono">OAuth 2.0 Cloud Mirror • Auto Morning Cron</span>
                 </div>
               </div>
 
-              <span className="px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-400 border border-zinc-800 text-xs font-mono">
-                Standby
-              </span>
+              {googleConn ? (
+                <span className="px-2.5 py-1 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-800/40 text-xs font-mono flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Auto-Sync Ready
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-400 border border-zinc-800 text-xs font-mono">
+                  Not Connected
+                </span>
+              )}
             </div>
 
-            <div className="text-xs text-zinc-500 pt-2 border-t border-zinc-900 flex justify-between">
-              <span>Sync cursor enabled for delta records</span>
-              <span className="font-mono text-[10px] text-zinc-600">ID: google_health_primary</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-900">
+              <span className="text-xs text-zinc-400">
+                Last Synced:{" "}
+                <strong className="text-zinc-200 font-mono">
+                  {googleConn?.lastSyncAt
+                    ? format(new Date(googleConn.lastSyncAt), "MMM d, HH:mm")
+                    : "Never"}
+                </strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowGoogleModal(true)}
+                  className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs border border-zinc-800 transition-colors"
+                >
+                  Setup Guide
+                </button>
+                <button
+                  onClick={handleConnectGoogle}
+                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                >
+                  Connect Account
+                </button>
+                <button
+                  onClick={handleSyncGoogle}
+                  disabled={syncingGoogle}
+                  className="px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs border border-zinc-700/80 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingGoogle ? "animate-spin text-blue-400" : ""}`} />
+                  {syncingGoogle ? "Syncing..." : "Sync Now"}
+                </button>
+              </div>
             </div>
+
+            {googleSyncMsg && (
+              <p className="text-[11px] font-mono text-emerald-400 pt-1">
+                {googleSyncMsg}
+              </p>
+            )}
           </div>
         </div>
 
@@ -544,6 +627,117 @@ storeNextChangesToken(response.nextChangesToken)`;
           </table>
         </div>
       </div>
+
+      {/* Notification Toast Banners */}
+      {connectedParam === "google_health" && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-xl bg-emerald-950/95 border border-emerald-600/80 text-emerald-200 text-xs shadow-2xl flex items-center gap-3 backdrop-blur-md">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Google Health connected! Automated morning delta syncing is now active.</span>
+        </div>
+      )}
+      {errorParam && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-xl bg-rose-950/95 border border-rose-600/80 text-rose-200 text-xs shadow-2xl flex items-center gap-3 backdrop-blur-md">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>Google Health Sync Notice: {errorParam === "missing_google_client_id" ? "Please set GOOGLE_CLIENT_ID in your Vercel project environment." : errorParam}</span>
+        </div>
+      )}
+
+      {/* Google Health OAuth Setup Guide Modal */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#121215] border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-blue-950 text-blue-300 font-bold flex items-center justify-center text-xs">
+                  G
+                </div>
+                <h3 className="font-semibold text-white text-base">Google Health OAuth 2.0 Setup</h3>
+              </div>
+              <button
+                onClick={() => setShowGoogleModal(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              To allow Nadir to auto-sync sleep data from Google Health Connect directly via cloud REST API:
+            </p>
+
+            <ol className="text-xs text-zinc-400 space-y-3 list-decimal list-inside leading-relaxed">
+              <li>
+                Open the{" "}
+                <a
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-400 hover:underline inline-flex items-center gap-1"
+                >
+                  Google Cloud Console <ExternalLink className="w-3 h-3" />
+                </a>{" "}
+                and enable the <strong>Fitness API</strong>.
+              </li>
+              <li>Create an <strong>OAuth 2.0 Client ID</strong> (Application type: <em>Web application</em>).</li>
+              <li>
+                Under <strong>Authorized redirect URIs</strong>, paste this exact callback URL:
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/api/auth/callback/google`
+                        : "https://circadian-sleep-app.vercel.app/api/auth/callback/google"
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] font-mono text-zinc-300"
+                  />
+                  <button
+                    onClick={() => {
+                      const url = typeof window !== "undefined"
+                        ? `${window.location.origin}/api/auth/callback/google`
+                        : "https://circadian-sleep-app.vercel.app/api/auth/callback/google";
+                      navigator.clipboard.writeText(url);
+                      setCopiedRedirectUri(true);
+                      setTimeout(() => setCopiedRedirectUri(false), 2000);
+                    }}
+                    className="px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-[11px] text-zinc-300 font-medium shrink-0"
+                  >
+                    {copiedRedirectUri ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </li>
+              <li>
+                In your{" "}
+                <a
+                  href="https://vercel.com/albert-antonys-projects/circadian-sleep-app/settings/environment-variables"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-400 hover:underline inline-flex items-center gap-1"
+                >
+                  Vercel Environment Variables <ExternalLink className="w-3 h-3" />
+                </a>, add:
+                <pre className="mt-1 bg-zinc-950 p-2 rounded border border-zinc-900 text-[11px] text-amber-300 font-mono">
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+                </pre>
+              </li>
+              <li>
+                Once saved in Vercel, click <strong>Connect Account</strong> to authorize. Nadir will auto-pull finalized sleep logs every morning via Vercel Cron.
+              </li>
+            </ol>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowGoogleModal(false)}
+                className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium"
+              >
+                Close Guide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
