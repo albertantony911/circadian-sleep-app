@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { users, sleepSessions, sleepStages } from "@/lib/db/schema";
+import { users, sleepSessions, sleepStages, oauthConnections } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { calculateSleepDebt } from "@/lib/analytics/sleep-debt";
 import { analyzeCircadianRhythm, timeToFractionalHours } from "@/lib/analytics/circadian";
@@ -8,6 +8,24 @@ import { analyzeCircadianRhythm, timeToFractionalHours } from "@/lib/analytics/c
 export async function GET() {
   const db = await getDb();
   const userId = "usr_nadir_primary";
+
+  // Check if background delta sync is needed (e.g., user waking up at any time)
+  try {
+    const connections = await db
+      .select()
+      .from(oauthConnections)
+      .where(eq(oauthConnections.userId, userId));
+
+    const googleConn = connections.find((c: any) => c.provider === "google_health");
+    if (googleConn && googleConn.accessToken && (!googleConn.lastSyncAt || Date.now() - new Date(googleConn.lastSyncAt).getTime() > 10800000)) {
+      // Last synced > 3 hours ago: trigger auto-sync in background
+      import("@/lib/sync/google-health")
+        .then(({ syncGoogleHealthSessions }) => syncGoogleHealthSessions(userId))
+        .catch(console.error);
+    }
+  } catch (err) {
+    // Non-blocking
+  }
 
   // Fetch user
   const userList = await db.select().from(users).where(eq(users.id, userId)).limit(1);
