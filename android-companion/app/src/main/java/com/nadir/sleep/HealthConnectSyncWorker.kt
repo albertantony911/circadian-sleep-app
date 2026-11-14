@@ -1,6 +1,7 @@
 package com.nadir.sleep
 
 import android.content.Context
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
@@ -37,6 +38,7 @@ class HealthConnectSyncWorker(
         const val BEARER_API_KEY = "ak_live_circadian_92b8d0e74f1"
         const val PREF_CHANGES_TOKEN = "key_health_connect_changes_token"
         const val KEY_FORCE_BACKFILL = "key_force_backfill"
+        const val TAG = "NadirSync"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -59,8 +61,12 @@ class HealthConnectSyncWorker(
                         )
                     )
 
+                    Log.d(TAG, "Health Connect records read: ${pastResponse.records.size}")
+
                     for (record in pastResponse.records) {
                         val durationMinutes = ChronoUnit.MINUTES.between(record.startTime, record.endTime).toInt()
+                        if (durationMinutes <= 0) continue
+
                         val sessionObj = JSONObject().apply {
                             put("externalId", record.metadata.id)
                             put("sourceApp", record.metadata.dataOrigin.packageName)
@@ -74,6 +80,8 @@ class HealthConnectSyncWorker(
                             val stagesArray = JSONArray()
                             for (stage in record.stages) {
                                 val stageDuration = ChronoUnit.SECONDS.between(stage.startTime, stage.endTime)
+                                if (stageDuration <= 0) continue
+
                                 val stageType = when (stage.stage) {
                                     SleepSessionRecord.STAGE_TYPE_DEEP -> "deep"
                                     SleepSessionRecord.STAGE_TYPE_REM -> "rem"
@@ -93,87 +101,108 @@ class HealthConnectSyncWorker(
                         upsertedArray.put(sessionObj)
                     }
                 } catch (readEx: Exception) {
-                    readEx.printStackTrace()
+                    Log.e(TAG, "Error reading Health Connect records", readEx)
                 }
 
                 // Initialize token for future deltas
-                changesToken = client.getChangesToken(
-                    ChangesTokenRequest(recordTypes = setOf(SleepSessionRecord::class))
-                )
+                try {
+                    changesToken = client.getChangesToken(
+                        ChangesTokenRequest(recordTypes = setOf(SleepSessionRecord::class))
+                    )
+                } catch (tEx: Exception) {
+                    Log.e(TAG, "Error getting changes token", tEx)
+                }
             } else {
                 // Pull incremental changes delta only (bypassing rate limits)
-                val changesResponse = client.getChanges(changesToken)
+                try {
+                    val changesResponse = client.getChanges(changesToken)
 
-                for (change in changesResponse.changes) {
-                    when (change) {
-                        is androidx.health.connect.client.changes.UpsertionChange -> {
-                            val record = change.record
-                            if (record is SleepSessionRecord) {
-                                val durationMinutes = ChronoUnit.MINUTES.between(record.startTime, record.endTime).toInt()
-                                val sessionObj = JSONObject().apply {
-                                    put("externalId", record.metadata.id)
-                                    put("sourceApp", record.metadata.dataOrigin.packageName)
-                                    put("startTime", record.startTime.toString())
-                                    put("endTime", record.endTime.toString())
-                                    put("durationMinutes", durationMinutes)
-                                    put("timeInBedMinutes", durationMinutes)
-                                    put("sleepScore", 85)
-                                    put("isMainSleep", true)
+                    for (change in changesResponse.changes) {
+                        when (change) {
+                            is androidx.health.connect.client.changes.UpsertionChange -> {
+                                val record = change.record
+                                if (record is SleepSessionRecord) {
+                                    val durationMinutes = ChronoUnit.MINUTES.between(record.startTime, record.endTime).toInt()
+                                    if (durationMinutes > 0) {
+                                        val sessionObj = JSONObject().apply {
+                                            put("externalId", record.metadata.id)
+                                            put("sourceApp", record.metadata.dataOrigin.packageName)
+                                            put("startTime", record.startTime.toString())
+                                            put("endTime", record.endTime.toString())
+                                            put("durationMinutes", durationMinutes)
+                                            put("timeInBedMinutes", durationMinutes)
+                                            put("sleepScore", 85)
+                                            put("isMainSleep", true)
 
-                                    val stagesArray = JSONArray()
-                                    for (stage in record.stages) {
-                                        val stageDuration = ChronoUnit.SECONDS.between(stage.startTime, stage.endTime)
-                                        val stageType = when (stage.stage) {
-                                            SleepSessionRecord.STAGE_TYPE_DEEP -> "deep"
-                                            SleepSessionRecord.STAGE_TYPE_REM -> "rem"
-                                            SleepSessionRecord.STAGE_TYPE_AWAKE,
-                                            SleepSessionRecord.STAGE_TYPE_OUT_OF_BED -> "awake"
-                                            else -> "light"
+                                            val stagesArray = JSONArray()
+                                            for (stage in record.stages) {
+                                                val stageDuration = ChronoUnit.SECONDS.between(stage.startTime, stage.endTime)
+                                                if (stageDuration <= 0) continue
+
+                                                val stageType = when (stage.stage) {
+                                                    SleepSessionRecord.STAGE_TYPE_DEEP -> "deep"
+                                                    SleepSessionRecord.STAGE_TYPE_REM -> "rem"
+                                                    SleepSessionRecord.STAGE_TYPE_AWAKE,
+                                                    SleepSessionRecord.STAGE_TYPE_OUT_OF_BED -> "awake"
+                                                    else -> "light"
+                                                }
+                                                stagesArray.put(JSONObject().apply {
+                                                    put("stage", stageType)
+                                                    put("startTime", stage.startTime.toString())
+                                                    put("endTime", stage.endTime.toString())
+                                                    put("durationSeconds", stageDuration)
+                                                })
+                                            }
+                                            put("stages", stagesArray)
                                         }
-                                        stagesArray.put(JSONObject().apply {
-                                            put("stage", stageType)
-                                            put("startTime", stage.startTime.toString())
-                                            put("endTime", stage.endTime.toString())
-                                            put("durationSeconds", stageDuration)
-                                        })
+                                        upsertedArray.put(sessionObj)
                                     }
-                                    put("stages", stagesArray)
                                 }
-                                upsertedArray.put(sessionObj)
+                            }
+                            is androidx.health.connect.client.changes.DeletionChange -> {
+                                deletedArray.put(change.recordId)
                             }
                         }
-                        is androidx.health.connect.client.changes.DeletionChange -> {
-                            deletedArray.put(change.recordId)
-                        }
                     }
+                    changesToken = changesResponse.nextChangesToken
+                } catch (cEx: Exception) {
+                    Log.e(TAG, "Error reading changes delta", cEx)
                 }
-                changesToken = changesResponse.nextChangesToken
             }
+
+            Log.d(TAG, "Posting to cloud: ${upsertedArray.length()} upserts, ${deletedArray.length()} deletes")
 
             // Build request payload
             val payload = JSONObject().apply {
-                put("changesToken", changesToken)
-                put("nextChangesToken", changesToken)
+                put("changesToken", changesToken ?: "")
+                put("nextChangesToken", changesToken ?: "")
                 put("upsertedRecords", upsertedArray)
                 put("deletedRecordIds", deletedArray)
             }
 
-            val success = postDeltaChanges(payload.toString())
+            val statusCode = postDeltaChanges(payload.toString())
+            Log.d(TAG, "Cloud sync HTTP status: $statusCode")
 
-            if (success) {
-                // Save the new token for future delta runs
-                prefs.edit().putString(PREF_CHANGES_TOKEN, changesToken).apply()
+            if (statusCode in 200..299) {
+                if (changesToken != null) {
+                    prefs.edit().putString(PREF_CHANGES_TOKEN, changesToken).apply()
+                }
                 Result.success()
+            } else if (statusCode in 400..499) {
+                // Client error (e.g. 401/403/400) -> do not loop indefinitely
+                Log.e(TAG, "Ingest client error $statusCode, aborting retry loop")
+                Result.failure()
             } else {
+                // Server error (500/504) -> allow single retry
                 Result.retry()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            Result.retry()
+            Log.e(TAG, "HealthConnectSyncWorker exception", e)
+            Result.failure()
         }
     }
 
-    private fun postDeltaChanges(jsonPayload: String): Boolean {
+    private fun postDeltaChanges(jsonPayload: String): Int {
         val url = URL(ENDPOINT_URL)
         val conn = url.openConnection() as HttpURLConnection
         return try {
@@ -181,12 +210,19 @@ class HealthConnectSyncWorker(
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Authorization", "Bearer $BEARER_API_KEY")
             conn.doOutput = true
-            conn.connectTimeout = 15000
-            conn.readTimeout = 15000
+            conn.connectTimeout = 25000
+            conn.readTimeout = 25000
 
             OutputStreamWriter(conn.outputStream).use { it.write(jsonPayload) }
             val responseCode = conn.responseCode
-            responseCode in 200..299
+            if (responseCode !in 200..299) {
+                val errorMsg = conn.errorStream?.bufferedReader()?.use { it.readText() }
+                Log.e(TAG, "Ingest error response ($responseCode): $errorMsg")
+            }
+            responseCode
+        } catch (ioEx: Exception) {
+            Log.e(TAG, "Network connection error", ioEx)
+            -1
         } finally {
             conn.disconnect()
         }

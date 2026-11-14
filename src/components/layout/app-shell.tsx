@@ -50,9 +50,14 @@ export function AppShell({ children }: AppShellProps) {
     if (typeof window !== "undefined" && (window as any).NadirNative) {
       setSyncing(true);
       setSyncMessage("Syncing Health Connect...");
+      const timer = setTimeout(() => {
+        setSyncing(false);
+        setSyncMessage(null);
+      }, 6000);
       try {
         (window as any).NadirNative.triggerSync();
       } catch (e) {
+        clearTimeout(timer);
         console.error("Native sync failed", e);
         setSyncing(false);
       }

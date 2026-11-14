@@ -210,8 +210,15 @@ class MainActivity : AppCompatActivity() {
         val workManager = WorkManager.getInstance(this)
         workManager.enqueue(workRequest)
 
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(6000)
+            if (swipeRefresh.isRefreshing) {
+                swipeRefresh.isRefreshing = false
+            }
+        }
+
         workManager.getWorkInfoByIdLiveData(workRequest.id).observe(this) { info ->
-            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED)) {
+            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED || info.state == WorkInfo.State.CANCELLED)) {
                 swipeRefresh.isRefreshing = false
                 if (info.state == WorkInfo.State.SUCCEEDED) {
                     Toast.makeText(this, "✓ Health Connect synced!", Toast.LENGTH_SHORT).show()
@@ -232,8 +239,15 @@ class MainActivity : AppCompatActivity() {
         val workManager = WorkManager.getInstance(this)
         workManager.enqueue(workRequest)
 
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(8000)
+            if (swipeRefresh.isRefreshing) {
+                swipeRefresh.isRefreshing = false
+            }
+        }
+
         workManager.getWorkInfoByIdLiveData(workRequest.id).observe(this) { info ->
-            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED)) {
+            if (info != null && (info.state == WorkInfo.State.SUCCEEDED || info.state == WorkInfo.State.FAILED || info.state == WorkInfo.State.CANCELLED)) {
                 swipeRefresh.isRefreshing = false
                 if (info.state == WorkInfo.State.SUCCEEDED) {
                     Toast.makeText(this, "✓ 30-day backfill complete!", Toast.LENGTH_SHORT).show()
