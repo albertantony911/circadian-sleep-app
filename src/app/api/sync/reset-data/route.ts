@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
 
     for (const s of allSessions) {
       const isSimulated =
+        s.id.startsWith("sess_") ||
+        s.externalId?.startsWith("ext_sess_") ||
         s.sourceApp === "fitbit_cloud" ||
         s.sourceApp === "simulated_seed" ||
         (s.rawPayload && typeof s.rawPayload === "object" && (s.rawPayload as any).simulated === true);

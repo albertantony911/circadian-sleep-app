@@ -193,8 +193,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Fetch recent sessions for deduplication
-    const existingSessions = await db
+    // 5. Purge any simulated seed sessions when real records arrive so they don't pollute or suppress real data
+    if (upsertedRecords.length > 0) {
+      const mockSessions = existingSessions.filter(
+        (s: any) => s.id.startsWith("sess_") || s.externalId?.startsWith("ext_sess_") || s.sourceApp === "simulated_seed"
+      );
+      if (mockSessions.length > 0) {
+        const mockIds = mockSessions.map((s: any) => s.id);
+        await db.delete(sleepStages).where(inArray(sleepStages.sessionId, mockIds));
+        await db.delete(sleepHeartRateSeries).where(inArray(sleepHeartRateSeries.sessionId, mockIds));
+        await db.delete(sleepSessions).where(inArray(sleepSessions.id, mockIds));
+      }
+    }
+
+    // Refresh existing sessions (excluding any purged mock sessions)
+    const activeSessions = await db
       .select()
       .from(sleepSessions)
       .where(eq(sleepSessions.userId, user.id));
@@ -202,7 +215,7 @@ export async function POST(req: NextRequest) {
     // 6. Run conflict resolution & deduplication engine
     const { recordsToUpsert, suppressedRecords } = deduplicateSleepRecords(
       upsertedRecords,
-      existingSessions.map((s: any) => ({
+      activeSessions.map((s: any) => ({
         externalId: s.externalId,
         sourceApp: s.sourceApp,
         startTime: s.startTime,
@@ -218,8 +231,8 @@ export async function POST(req: NextRequest) {
       const end = new Date(record.endTime);
       const timeInBed = record.timeInBedMinutes || record.durationMinutes;
 
-      // Delete any existing overlapping session that has lower priority (e.g. simulated data)
-      for (const ex of existingSessions) {
+      // Delete any existing overlapping session that has lower priority
+      for (const ex of activeSessions) {
         if (doIntervalsOverlap(start, end, new Date(ex.startTime), new Date(ex.endTime))) {
           if (getSourcePriority(record.sourceApp) > getSourcePriority(ex.sourceApp)) {
             await db.delete(sleepStages).where(eq(sleepStages.sessionId, ex.id));
@@ -252,7 +265,7 @@ export async function POST(req: NextRequest) {
         isWeekendMidpointShift: false,
       });
 
-      // Upsert parent session
+      // Upsert parent session targeting externalId
       await db
         .insert(sleepSessions)
         .values({
@@ -282,12 +295,18 @@ export async function POST(req: NextRequest) {
           rawPayload: record,
         })
         .onConflictDoUpdate({
-          target: sleepSessions.id,
+          target: sleepSessions.externalId,
           set: {
             durationMinutes: record.durationMinutes,
             timeInBedMinutes: timeInBed,
             deepMinutes: record.deepMinutes || 0,
             lightMinutes: record.lightMinutes || 0,
+            remMinutes: record.remMinutes || 0,
+            awakeMinutes: record.awakeMinutes || 0,
+            rhrNadirBpm: autonomicData.rhrNadirBpm,
+            hammockCurveType: autonomicData.hammockCurveType,
+          },
+        });
             remMinutes: record.remMinutes || 0,
             awakeMinutes: record.awakeMinutes || 0,
             rhrNadirBpm: autonomicData.rhrNadirBpm,
